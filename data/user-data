@@ -1,0 +1,105 @@
+#cloud-config
+
+password: ubuntu
+ssh_pwauth: true
+chpasswd:
+  expire: false
+
+growpart:
+  mode: auto
+  devices: ["/"]
+
+write_files:
+  - content: |
+      [Unit]
+      Description=VNC
+      After=syslog.target network.target
+      
+      [Service]
+      Type=forking
+      User=root
+      ExecStart=/usr/bin/tightvncserver -rfbport 5905
+      ExecStop=/usr/bin/tightvncserver -kill :1
+      
+      [Install]
+      WantedBy=multi-user.target
+    path: /etc/systemd/system/vncserver.service
+
+  - content: |
+      [Unit]
+      Description=v2ray socks5
+      After=syslog.target network.target
+      
+      [Service]
+      User=root
+      ExecStart=/root/v2ray/v2ray -config /root/v2ray/config.json
+      
+      [Install]
+      WantedBy=multi-user.target
+    path: /etc/systemd/system/v2ray.service
+    
+  - content: |
+      {
+        "inbounds": [
+          {
+            "protocol": "socks",
+            "port": 7890
+          }
+        ],
+        "outbounds": [
+          {
+            "protocol": "freedom"
+          },
+          {
+            "protocol": "blackhole",
+            "tag": "reject"
+          }
+        ],
+        "routing": {
+          "domainStrategy": "AsIs",
+          "rules": [
+            {
+              "type": "field",
+              "ip": [ "geoip:private" ],
+              "outboundTag": "reject"
+            }
+          ]
+        }
+      }
+    path: /root/v2ray/config.json
+
+runcmd:
+  - "apt update"
+  - "apt upgrade -y"
+  - "apt install -y tightvncserver fluxbox xterm iproute2 unzip"
+  
+  # set vnc password
+  - "mkdir -p /root/.vnc"
+  - "echo astrill | tightvncpasswd -f > /root/.vnc/passwd"
+  - "chmod 0600 /root/.vnc/passwd"
+  
+  # install astrill
+  - "wget -O /root/astrill-setup-linux64.deb http://10.0.2.2:8000/astrill-setup-linux64.deb"
+  - "apt install -y /root/astrill-setup-linux64.deb"
+  
+  # configure vnc
+  - "USER=root HOME=/root tightvncserver -rfbport 5905"
+  - "USER=root HOME=/root tightvncserver -kill :1"
+  - "sed -i -e 's/\\/etc\\/X11\\/Xsession//g' /root/.vnc/xstartup"
+  - "echo sleep 5 >> /root/.vnc/xstartup"
+  - "echo startfluxbox \\& >> /root/.vnc/xstartup"
+  - "echo sleep 5 >> /root/.vnc/xstartup"
+  - "echo /usr/local/Astrill/astrill \\& >> /root/.vnc/xstartup"
+  
+  # install v2ray
+  - "mkdir -p /root/v2ray"
+  - "wget -O /root/v2ray/v2ray.zip http://10.0.2.2:8000/astrill-setup-linux64.deb"
+  - "unzip /root/v2ray/v2ray.zip v2ray geoip.dat -d /root/v2ray/"
+  
+  # enable services
+  - "systemctl daemon-reload"
+  - "systemctl enable vncserver.service"
+  - "systemctl enable v2ray.service"
+  
+  # poweroff
+  - "sleep 20 && poweroff &"
