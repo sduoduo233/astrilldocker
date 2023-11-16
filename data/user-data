@@ -20,6 +20,9 @@ write_files:
       User=root
       ExecStart=/usr/bin/tightvncserver -rfbport 5905
       ExecStop=/usr/bin/tightvncserver -kill :1
+      ExecStartPost=/usr/bin/ip route add 10.0.0.0/8 dev ens3 via 10.0.2.2 src 10.0.2.15
+      ExecStartPost=/usr/bin/ip route add 172.16.0.0/12 dev ens3 via 10.0.2.2 src 10.0.2.15
+      ExecStartPost=/usr/bin/ip route add 192.168.0.0/16 dev ens3 via 10.0.2.2 src 10.0.2.15
       
       [Install]
       WantedBy=multi-user.target
@@ -32,7 +35,7 @@ write_files:
       
       [Service]
       User=root
-      ExecStart=/root/v2ray/v2ray -config /root/v2ray/config.json
+      ExecStart=/root/v2ray/v2ray run -config /root/v2ray/config.json
       
       [Install]
       WantedBy=multi-user.target
@@ -93,7 +96,7 @@ runcmd:
   
   # install v2ray
   - "mkdir -p /root/v2ray"
-  - "wget -O /root/v2ray/v2ray.zip http://10.0.2.2:8000/astrill-setup-linux64.deb"
+  - "wget -O /root/v2ray/v2ray.zip http://10.0.2.2:8000/v2ray-linux-64.zip"
   - "unzip /root/v2ray/v2ray.zip v2ray geoip.dat -d /root/v2ray/"
   
   # enable services
